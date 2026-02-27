@@ -41,6 +41,10 @@ async function getApiKey(context: vscode.ExtensionContext): Promise<string | und
   return trimmed;
 }
 
+async function resetApiKey(context: vscode.ExtensionContext): Promise<void> {
+  await context.secrets.delete("moodleSeance.openaiApiKey");
+}
+
 function getModel(): string {
   return vscode.workspace
     .getConfiguration("moodleSeance")
@@ -172,6 +176,20 @@ export function activate(context: vscode.ExtensionContext) {
           info("Echec de l'appel OpenAI.");
           console.error(err);
         }
+      }
+    },
+    {
+      id: "moodleSeance.resetApiKey",
+      title: "Reset API Key",
+      handler: async () => {
+        const choice = await vscode.window.showInformationMessage(
+          "Supprimer la cle API enregistree ?",
+          { modal: true },
+          "Supprimer"
+        );
+        if (!choice) return;
+        await resetApiKey(context);
+        info("Cle API supprimee. Vous serez redemande a la prochaine utilisation.");
       }
     },
     {

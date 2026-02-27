@@ -15,6 +15,7 @@
     "onCommand:moodleSeance.extract",
     "onCommand:moodleSeance.confirm",
     "onCommand:moodleSeance.sendToModel",
+    "onCommand:moodleSeance.resetApiKey",
     "onCommand:moodleSeance.generate",
     "onCommand:moodleSeance.export"
   ],
@@ -36,6 +37,10 @@
       {
         "command": "moodleSeance.sendToModel",
         "title": "Moodle: Send"
+      },
+      {
+        "command": "moodleSeance.resetApiKey",
+        "title": "Moodle: Reset API Key"
       },
       {
         "command": "moodleSeance.generate",
