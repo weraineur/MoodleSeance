@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    // Emit modern JS while staying compatible with VS Code extension runtime.
+    "target": "ES2020",
+    // VS Code extensions use CommonJS modules.
+    "module": "commonjs",
+    // Limit the lib to what we need for a small extension.
+    "lib": ["ES2020"],
+    // Keep sources under src and emit to dist.
+    "rootDir": "src",
+    "outDir": "dist",
+    // Enable debugging via source maps.
+    "sourceMap": true,
+    // Enforce strict typing for safer code.
+    "strict": true,
+    // Allow default imports from CommonJS modules.
+    "esModuleInterop": true
+  },
+  // Exclude build/test folders from compilation.
+  "exclude": ["node_modules", ".vscode-test"]
+}

@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Launch a new Extension Host for local testing.
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      // Use the current VS Code executable.
+      "runtimeExecutable": "${execPath}",
+      // Load the extension from the current workspace.
+      // Open the same folder in the Extension Host to ensure a workspace root.
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        // Open a workspace folder explicitly for the Extension Host.
+        "--folder",
+        "${workspaceFolder}"
+      ]
+    }
+  ]
+}

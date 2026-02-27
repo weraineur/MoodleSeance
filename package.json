@@ -1,0 +1,60 @@
+{
+  "name": "moodle-seance",
+  "displayName": "Moodle Seance",
+  "description": "Build e-learning content from documents.",
+  "version": "0.0.1",
+  "publisher": "Alexandre SCHOHN",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:moodleSeance.importDocuments",
+    "onCommand:moodleSeance.extract",
+    "onCommand:moodleSeance.confirm",
+    "onCommand:moodleSeance.sendToModel",
+    "onCommand:moodleSeance.generate",
+    "onCommand:moodleSeance.export"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "moodleSeance.importDocuments",
+        "title": "Moodle: Import"
+      },
+      {
+        "command": "moodleSeance.extract",
+        "title": "Moodle: Extract"
+      },
+      {
+        "command": "moodleSeance.confirm",
+        "title": "Moodle: Confirm"
+      },
+      {
+        "command": "moodleSeance.sendToModel",
+        "title": "Moodle: Send"
+      },
+      {
+        "command": "moodleSeance.generate",
+        "title": "Moodle: Generate"
+      },
+      {
+        "command": "moodleSeance.export",
+        "title": "Moodle: Export"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}

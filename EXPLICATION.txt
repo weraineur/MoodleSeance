@@ -1,0 +1,63 @@
+﻿EXPLICATION DES FICHIERS ET DOSSIERS DU PROJET
+
+1) package.json
+Ce fichier est le manifeste de l’extension VS Code.
+- Il donne l’identite de l’extension (name, displayName, publisher, version).
+- Il indique a VS Code quelle version de VS Code est compatible (engines).
+- Il declare les commandes disponibles dans l’extension (contributes.commands).
+- Il declare quand activer l’extension (activationEvents) : l’extension se charge quand une commande est executee.
+- Il definit les scripts de build TypeScript (compile, watch, vscode:prepublish).
+- Il liste les dependances de developpement pour compiler TypeScript.
+- Les titres de commandes ont ete raccourcis (Moodle: Import/Extract/Confirm/Send/Generate/Export).
+
+2) tsconfig.json
+Ce fichier configure le compilateur TypeScript.
+- target ES2020 : le JavaScript genere est compatible ES2020.
+- module commonjs : format utilise par VS Code pour les extensions.
+- lib ES2020 : API JavaScript disponibles au compilateur.
+- rootDir src : les sources TypeScript sont dans src.
+- outDir dist : le code compile est genere dans dist.
+- sourceMap true : facilite le debug.
+- strict true : active la verification stricte des types.
+- esModuleInterop true : facilite l’import de modules CommonJS.
+
+3) .vscode/launch.json
+Ce fichier definit une configuration de debug.
+- Il lance un “Extension Host” VS Code.
+- L’extension est chargee depuis le dossier courant.
+- Il ouvre explicitement le dossier du projet pour eviter l’erreur de workspace manquant.
+
+4) src/extension.ts
+C’est le point d’entree de l’extension.
+- Il importe l’API VS Code (module vscode).
+- Il declare un type PipelineStep pour structurer les etapes.
+- Il definit une fonction info() qui affiche des messages dans VS Code.
+- La fonction activate() est appelee quand l’extension se charge.
+  - Elle declare 6 etapes (import, extract, confirm, send, generate, export).
+  - Chaque etape enregistre une commande VS Code.
+  - Chaque commande affiche un message (stub) pour l’instant.
+- La fonction deactivate() est presente, mais ne fait rien pour l’instant.
+
+5) README.md
+Ce fichier resume le projet.
+- Il explique l’objectif de l’extension.
+- Il decrit les fichiers de configuration.
+- Il donne les etapes pour lancer l’extension en local.
+
+6) package.json (details)
+- "name", "displayName", "description": identite et description de l’extension.
+- "publisher": editeur de l’extension.
+- "version": version de l’extension.
+- "engines.vscode": version minimale de VS Code.
+- "categories": classement Marketplace.
+- "activationEvents": charge l’extension a l’execution d’une commande.
+- "main": point d’entree compile (dist/extension.js).
+- "contributes.commands": declaration des commandes VS Code visibles.
+- "scripts": scripts npm pour compiler.
+- "devDependencies": dependances de developpement TypeScript.
+
+7) Dossiers
+- .vscode : configuration de debug pour VS Code.
+- src : code source TypeScript de l’extension.
+- dist : code JavaScript compile utilise par VS Code.
+- node_modules : dependances installees par npm.
