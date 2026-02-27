@@ -64,8 +64,24 @@ export function activate(context: vscode.ExtensionContext) {
       id: "moodleSeance.confirm",
       title: "Confirm Inputs",
       handler: async () => {
-        // TODO: show a preview and ask for confirmation.
-        info("Confirmation step: review extracted content before sending.");
+        if (state.files.length === 0) {
+          info("Aucun fichier à confirmer. Veuillez importer et extraire des documents d'abord.");
+          return;
+        }
+        const preview = state.files.slice(0, 10).join("\n");
+        const more = state.files.length > 10 ? `\n...and ${state.files.length - 10} more` : "";
+        const message = `Fichiers importés : \n${preview}${more}\n\n Confirmez-vous ces fichiers pour la génération ?`;
+        const choice = await vscode.window.showInformationMessage(
+          message,
+          {modal: true},
+          "Confirmer",
+        );
+        
+        if (!choice) {
+          info("Confirmation annulée par l'utilisateur.");
+          return;
+        }
+        info("Fichiers confirmés pour la génération.");
       }
     },
     {
