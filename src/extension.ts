@@ -1,6 +1,18 @@
 // Core VS Code API used to register commands and show UI messages.
 import * as vscode from "vscode";
 
+
+
+type SessionState = { 
+  files : string[];
+};
+
+const state  : SessionState = {
+  files: [] 
+};
+
+
+
 type PipelineStep = {
   id: string;
   title: string;
@@ -19,17 +31,34 @@ export function activate(context: vscode.ExtensionContext) {
       id: "moodleSeance.importDocuments",
       title: "Import Documents",
       handler: async () => {
-        // TODO: prompt for files and store selection.
-        info("Import step: select documents to ingest.");
+        const result = await vscode.window.showOpenDialog({
+          canSelectMany : true,
+          canSelectFiles : true,
+          canSelectFolders : false,
+          filters: {
+            Documents: ["doc", "docx", "ppt", "pptx", "pdf", "txt", "xls", "xlsx"],
+          }
+        });
+        if (!result || result.length === 0) {
+          info("Import annulée : aucun fichier sélectionné.");
+          return;
+        }
+
+        state.files = result.map((uri) => uri.fsPath);
+        info(`Import réussi : ${state.files.length} fichier(s) sélectionné(s).`);
       }
     },
     {
       id: "moodleSeance.extract",
       title: "Extract Content",
       handler: async () => {
-        // TODO: extract text from supported file types.
-        info("Extraction step: parse and normalize content.");
+        if (state.files.length === 0) {
+          info("Aucun fichier à extraire. Veuillez importer des documents d'abord.");
+          return;
+        }
+      info('Extraction simulée : contenu extrait de ' + state.files.length + ' fichier(s).');
       }
+
     },
     {
       id: "moodleSeance.confirm",
