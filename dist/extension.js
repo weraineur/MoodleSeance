@@ -37,6 +37,10 @@ exports.activate = activate;
 exports.deactivate = deactivate;
 // Core VS Code API used to register commands and show UI messages.
 const vscode = __importStar(require("vscode"));
+const state = {
+    files: [],
+    lastResponse: null
+};
 // Centralize user notifications so messages are consistent.
 function info(message) {
     void vscode.window.showInformationMessage(message);
@@ -48,24 +52,50 @@ function activate(context) {
             id: "moodleSeance.importDocuments",
             title: "Import Documents",
             handler: async () => {
-                // TODO: prompt for files and store selection.
-                info("Import step: select documents to ingest.");
+                const result = await vscode.window.showOpenDialog({
+                    canSelectMany: true,
+                    canSelectFiles: true,
+                    canSelectFolders: false,
+                    filters: {
+                        Documents: ["doc", "docx", "ppt", "pptx", "pdf", "txt", "xls", "xlsx"],
+                    }
+                });
+                if (!result || result.length === 0) {
+                    info("Import annulée : aucun fichier sélectionné.");
+                    return;
+                }
+                state.files = result.map((uri) => uri.fsPath);
+                info(`Import réussi : ${state.files.length} fichier(s) sélectionné(s).`);
             }
         },
         {
             id: "moodleSeance.extract",
             title: "Extract Content",
             handler: async () => {
-                // TODO: extract text from supported file types.
-                info("Extraction step: parse and normalize content.");
+                if (state.files.length === 0) {
+                    info("Aucun fichier à extraire. Veuillez importer des documents d'abord.");
+                    return;
+                }
+                info('Extraction simulée : contenu extrait de ' + state.files.length + ' fichier(s).');
             }
         },
         {
             id: "moodleSeance.confirm",
             title: "Confirm Inputs",
             handler: async () => {
-                // TODO: show a preview and ask for confirmation.
-                info("Confirmation step: review extracted content before sending.");
+                if (state.files.length === 0) {
+                    info("Aucun fichier à confirmer. Veuillez importer et extraire des documents d'abord.");
+                    return;
+                }
+                const preview = state.files.slice(0, 10).join("\n");
+                const more = state.files.length > 10 ? `\n...and ${state.files.length - 10} more` : "";
+                const message = `Fichiers importés : \n${preview}${more}\n\n Confirmez-vous ces fichiers pour la génération ?`;
+                const choice = await vscode.window.showInformationMessage(message, { modal: true }, "Confirmer");
+                if (!choice) {
+                    info("Confirmation annulée par l'utilisateur.");
+                    return;
+                }
+                info("Fichiers confirmés pour la génération.");
             }
         },
         {

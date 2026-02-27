@@ -45,7 +45,22 @@
         "command": "moodleSeance.export",
         "title": "Moodle: Export"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Moodle Seance",
+      "properties": {
+        "moodleSeance.model": {
+          "type": "string",
+          "default": "gpt-4.1",
+          "description": "Modele OpenAI utilise pour la generation."
+        },
+        "moodleSeance.apiBase": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "Base URL de l'API OpenAI."
+        }
+      }
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",
