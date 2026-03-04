@@ -12,9 +12,9 @@
       // Open the same folder in the Extension Host to ensure a workspace root.
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}",
-        // Open a workspace folder explicitly for the Extension Host.
+        // Open a simple workspace folder to avoid path issues with accents/spaces.
         "--folder",
-        "${workspaceFolder}"
+        "C:\\Users\\schohn\\OneDrive\\Documents\\ExportMoodle"
       ]
     }
   ]

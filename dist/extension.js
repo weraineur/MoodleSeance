@@ -51,7 +51,7 @@ async function getApiKey(context) {
     if (existing)
         return existing;
     const input = await vscode.window.showInputBox({
-        prompt: "Entrez votre cle API OpenAI",
+        prompt: "Entrez votre clé API OpenAI",
         password: true,
         ignoreFocusOut: true
     });
@@ -62,6 +62,9 @@ async function getApiKey(context) {
         return undefined;
     await context.secrets.store("moodleSeance.openaiApiKey", trimmed);
     return trimmed;
+}
+async function resetApiKey(context) {
+    await context.secrets.delete("moodleSeance.openaiApiKey");
 }
 function getModel() {
     return vscode.workspace
@@ -98,11 +101,11 @@ function activate(context) {
                     }
                 });
                 if (!result || result.length === 0) {
-                    info("Import annule : aucun fichier selectionne.");
+                    info("Import annulé : aucun fichier sélectionné.");
                     return;
                 }
                 state.files = result.map((uri) => uri.fsPath);
-                info(`Import reussi : ${state.files.length} fichier(s) selectionne(s).`);
+                info(`Import réussi : ${state.files.length} fichier(s) sélectionné(s).`);
             }
         },
         {
@@ -110,10 +113,10 @@ function activate(context) {
             title: "Extract Content",
             handler: async () => {
                 if (state.files.length === 0) {
-                    info("Aucun fichier a extraire. Veuillez importer des documents d'abord.");
+                    info("Aucun fichier à extraire. Veuillez importer des documents d'abord.");
                     return;
                 }
-                info("Extraction simulee : contenu extrait de " + state.files.length + " fichier(s).");
+                info("Extraction simulée : contenu extrait de " + state.files.length + " fichier(s).");
             }
         },
         {
@@ -121,18 +124,18 @@ function activate(context) {
             title: "Confirm Inputs",
             handler: async () => {
                 if (state.files.length === 0) {
-                    info("Aucun fichier a confirmer. Veuillez importer et extraire des documents d'abord.");
+                    info("Aucun fichier à confirmer. Veuillez importer et extraire des documents d'abord.");
                     return;
                 }
                 const preview = state.files.slice(0, 10).join("\n");
-                const more = state.files.length > 10 ? `\n...and ${state.files.length - 10} more` : "";
-                const message = `Fichiers importes : \n${preview}${more}\n\n Confirmez-vous ces fichiers pour la generation ?`;
+                const more = state.files.length > 10 ? `\n... et ${state.files.length - 10} autre(s)` : "";
+                const message = `Fichiers importés : \n${preview}${more}\n\n Confirmez-vous ces fichiers pour la génération ?`;
                 const choice = await vscode.window.showInformationMessage(message, { modal: true }, "Confirmer");
                 if (!choice) {
-                    info("Confirmation annulee par l'utilisateur.");
+                    info("Confirmation annulée par l'utilisateur.");
                     return;
                 }
-                info("Fichiers confirmes pour la generation.");
+                info("Fichiers confirmés pour la génération.");
             }
         },
         {
@@ -140,19 +143,19 @@ function activate(context) {
             title: "Send to Model",
             handler: async () => {
                 if (state.files.length === 0) {
-                    info("Aucun fichier a envoyer.");
+                    info("Aucun fichier à envoyer.");
                     return;
                 }
                 const apiKey = await getApiKey(context);
                 if (!apiKey) {
-                    info("Cle API manquante.");
+                    info("Clé API manquante.");
                     return;
                 }
                 const model = getModel();
                 const apiBase = getApiBase();
-                const inputText = "Tu es un assistant. Voici la liste des fichiers importes:\n" +
+                const inputText = "Tu es un assistant. Voici la liste des fichiers importés :\n" +
                     state.files.join("\n") +
-                    "\n\nGenere un plan de seance e-learning en te basant sur ces documents.";
+                    "\n\nGénère un plan de séance e-learning en te basant sur ces documents.";
                 try {
                     const res = await fetch(`${apiBase}/responses`, {
                         method: "POST",
@@ -173,28 +176,104 @@ function activate(context) {
                     const data = await res.json();
                     const output = extractOutputText(data);
                     state.lastResponse = output;
-                    info("Reponse recue.");
+                    info("Réponse reçue.");
                 }
                 catch (err) {
-                    info("Echec de l'appel OpenAI.");
+                    info("Échec de l'appel OpenAI.");
                     console.error(err);
                 }
+            }
+        },
+        {
+            id: "moodleSeance.resetApiKey",
+            title: "Reset API Key",
+            handler: async () => {
+                const choice = await vscode.window.showInformationMessage("Supprimer la clé API enregistrée ?", { modal: true }, "Supprimer");
+                if (!choice)
+                    return;
+                await resetApiKey(context);
+                info("Clé API supprimée. Elle sera redemandée à la prochaine utilisation.");
             }
         },
         {
             id: "moodleSeance.generate",
             title: "Generate Outputs",
             handler: async () => {
-                // TODO: build outputs from model response.
-                info("Generation step: build the requested artifacts.");
+                if (!state.lastResponse || state.lastResponse.trim().length === 0) {
+                    info("Aucune réponse à générer. Lancez d'abord Moodle: Send.");
+                    return;
+                }
+                // 1) Onglet HTML échappé (webview)
+                const panel = vscode.window.createWebviewPanel("moodleSeancePreview", "Moodle — HTML échappé", vscode.ViewColumn.Beside, { enableScripts: false });
+                const escaped = state.lastResponse
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/\n/g, "<br/>");
+                const htmlSource = `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Moodle — HTML échappé</title>
+  <style>
+    body { font-family: sans-serif; padding: 24px; line-height: 1.5; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    .content { white-space: normal; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Prévisualisation (HTML échappé)</h1>
+    <div class="content">${escaped}</div>
+  </div>
+</body>
+</html>`;
+                panel.webview.html = htmlSource;
+                // 2) Onglet Preview Markdown
+                const doc = await vscode.workspace.openTextDocument({
+                    content: state.lastResponse,
+                    language: "markdown"
+                });
+                await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.One, preserveFocus: true });
+                await vscode.commands.executeCommand("markdown.showPreviewToSide", doc.uri);
+                await vscode.commands.executeCommand("markdown.preview.refresh");
+                // 3) Onglet texte avec le code HTML
+                const htmlDoc = await vscode.workspace.openTextDocument({
+                    content: htmlSource,
+                    language: "html"
+                });
+                await vscode.window.showTextDocument(htmlDoc, { preview: false, viewColumn: vscode.ViewColumn.Three, preserveFocus: true });
+                info("HTML échappé + preview Markdown + code HTML ouverts.");
             }
         },
         {
             id: "moodleSeance.export",
             title: "Export Outputs",
             handler: async () => {
-                // TODO: write outputs to files or workspace.
-                info("Export step: save outputs to disk.");
+                if (!state.lastResponse || state.lastResponse.trim().length === 0) {
+                    info("Aucune réponse à exporter. Lancez d'abord Moodle: Send.");
+                    return;
+                }
+                const target = await vscode.window.showSaveDialog({
+                    saveLabel: "Exporter la séance générée",
+                    filters: {
+                        "Fichiers texte": ["txt"],
+                        "Fichiers HTML": ["html"]
+                    },
+                    defaultUri: vscode.Uri.file(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+                        ? `${vscode.workspace.workspaceFolders[0].uri.fsPath}\\export-moodle-seance.txt`
+                        : "export-moodle-seance.txt")
+                });
+                if (!target) {
+                    info("Export annulé.");
+                    return;
+                }
+                const encoder = new TextEncoder();
+                const data = encoder.encode(state.lastResponse);
+                await vscode.workspace.fs.writeFile(target, data);
+                info(`Export réussi : ${target.fsPath}`);
             }
         }
     ];
