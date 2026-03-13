@@ -39,7 +39,8 @@ exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const state = {
     files: [],
-    lastResponse: null
+    lastResponse: null,
+    lastGeneratedHtml: null
 };
 // Centralize user notifications so messages are consistent.
 function info(message) {
@@ -84,6 +85,171 @@ function extractOutputText(data) {
     if (typeof part?.text === "string")
         return part.text;
     return "";
+}
+function escapeHtml(value) {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+function formatInlineMarkdown(value) {
+    const escaped = escapeHtml(value);
+    return escaped
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>");
+}
+function renderVideoAccordion(content) {
+    return `<div class="accordion" id="accordionExample">
+    <div class="card">
+        <div class="card-header" id="headingOne">
+            <h2 class="mb-0">
+                <button class="btn btn-link btn-block text-left" type="button"
+                        data-toggle="collapse" data-target="#collapseOne"
+                        aria-expanded="true" aria-controls="collapseOne">
+                    <div class="p-2 mb-2 bg-info text-white">Vidéo</div>
+                </button>
+            </h2>
+        </div>
+        <div id="collapseOne" class="collapse" data-parent="#accordionExample">
+            <div class="card-body">${content}</div>
+        </div>
+    </div>
+</div>`;
+}
+function splitSectionsByTitles(htmlParts) {
+    const sections = [];
+    let current = [];
+    for (const part of htmlParts) {
+        if (part.startsWith('<div class="p-2 mb-2 bg-info text-white">') && current.length > 0) {
+            sections.push(current.join("\n"));
+            current = [part];
+            continue;
+        }
+        current.push(part);
+    }
+    if (current.length > 0) {
+        sections.push(current.join("\n"));
+    }
+    return sections;
+}
+function buildTabsContainer(parts) {
+    const p1 = parts.slice(0, Math.ceil(parts.length / 3)).join("\n");
+    const p2 = parts.slice(Math.ceil(parts.length / 3), Math.ceil((2 * parts.length) / 3)).join("\n");
+    const p3 = parts.slice(Math.ceil((2 * parts.length) / 3)).join("\n");
+    return `<ul class="nav nav-tabs" id="myTab" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link active" id="naturels-tab" data-toggle="tab" href="#naturels" role="tab">Partie 1</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="anthropiques-tab" data-toggle="tab" href="#anthropiques" role="tab">Partie 2</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="points-tab" data-toggle="tab" href="#points" role="tab">Partie 3</a>
+  </li>
+</ul>
+
+<div class="tab-content p-3 border border-top-0" id="myTabContent">
+
+  <div class="tab-pane fade show active" id="naturels" role="tabpanel">
+    ${p1}
+  </div>
+
+  <div class="tab-pane fade" id="anthropiques" role="tabpanel">
+    ${p2}
+  </div>
+
+  <div class="tab-pane fade" id="points" role="tabpanel">
+    ${p3}
+  </div>
+
+</div>`;
+}
+function renderMoodleHtmlFromMarkdown(markdown) {
+    const lines = markdown.split(/\r?\n/);
+    const htmlParts = [];
+    let inList = false;
+    let inTable = false;
+    const tableRows = [];
+    const closeList = () => {
+        if (inList) {
+            htmlParts.push("</ul>");
+            inList = false;
+        }
+    };
+    const closeTable = () => {
+        if (inTable) {
+            htmlParts.push(`<table class="table table-bordered table-striped"><tbody>${tableRows.join("")}</tbody></table>`);
+            inTable = false;
+            tableRows.length = 0;
+        }
+    };
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) {
+            closeList();
+            closeTable();
+            continue;
+        }
+        const headingMatch = line.match(/^#{1,6}\s+(.+)$/);
+        if (headingMatch) {
+            closeList();
+            closeTable();
+            htmlParts.push(`<div class="p-2 mb-2 bg-info text-white">
+    <h3 class="text-white">${formatInlineMarkdown(headingMatch[1])}</h3>
+</div>`);
+            continue;
+        }
+        if (line.startsWith("|") && line.endsWith("|")) {
+            closeList();
+            inTable = true;
+            const cols = line
+                .split("|")
+                .slice(1, -1)
+                .map((col) => col.trim());
+            if (cols.every((col) => /^:?-{3,}:?$/.test(col))) {
+                continue;
+            }
+            tableRows.push(`<tr>${cols.map((col) => `<td>${formatInlineMarkdown(col)}</td>`).join("")}</tr>`);
+            continue;
+        }
+        const bulletMatch = line.match(/^[-*]\s+(.+)$/);
+        if (bulletMatch) {
+            closeTable();
+            if (!inList) {
+                htmlParts.push('<ul class="bullet-list">');
+                inList = true;
+            }
+            htmlParts.push(`<li>${formatInlineMarkdown(bulletMatch[1])}</li>`);
+            continue;
+        }
+        if (/^---+$/.test(line)) {
+            closeList();
+            closeTable();
+            htmlParts.push("<hr>");
+            continue;
+        }
+        closeList();
+        closeTable();
+        if (/^exemple\s*:/i.test(line)) {
+            htmlParts.push(`<div class="alert alert-secondary">
+    <strong>Exemple :</strong><br>${formatInlineMarkdown(line.replace(/^exemple\s*:/i, "").trim())}
+    </div>`);
+            continue;
+        }
+        if (/vid[eé]o|corrig[ée]/i.test(line)) {
+            htmlParts.push(renderVideoAccordion(`<p>${formatInlineMarkdown(line)}</p>`));
+            continue;
+        }
+        htmlParts.push(`<p>${formatInlineMarkdown(line)}</p>`);
+    }
+    closeList();
+    closeTable();
+    const sections = splitSectionsByTitles(htmlParts);
+    if (sections.length >= 6) {
+        return buildTabsContainer(sections);
+    }
+    return htmlParts.join("\n");
 }
 function activate(context) {
     // Define the pipeline steps and stub handlers for now.
@@ -205,31 +371,40 @@ function activate(context) {
                 }
                 // 1) Onglet HTML échappé (webview)
                 const panel = vscode.window.createWebviewPanel("moodleSeancePreview", "Moodle — HTML échappé", vscode.ViewColumn.Beside, { enableScripts: false });
-                const escaped = state.lastResponse
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/\n/g, "<br/>");
+                const styledContent = renderMoodleHtmlFromMarkdown(state.lastResponse);
                 const htmlSource = `<!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Moodle — HTML échappé</title>
+  <title>Moodle — HTML pour editeur</title>
   <style>
-    body { font-family: sans-serif; padding: 24px; line-height: 1.5; }
-    .container { max-width: 900px; margin: 0 auto; }
-    h1 { font-size: 20px; margin-bottom: 16px; }
-    .content { white-space: normal; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1d2125;
+      background: #ffffff;
+      line-height: 1.45;
+    }
+    p {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+    }
+    .p-2.mb-2.bg-info.text-white {
+      background-color: #0d8899 !important;
+      color: #fff !important;
+    }
+    .text-white {
+      color: #fff !important;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Prévisualisation (HTML échappé)</h1>
-    <div class="content">${escaped}</div>
-  </div>
+  ${styledContent}
 </body>
 </html>`;
+                state.lastGeneratedHtml = htmlSource;
                 panel.webview.html = htmlSource;
                 // 2) Onglet Preview Markdown
                 const doc = await vscode.workspace.openTextDocument({
@@ -245,7 +420,7 @@ function activate(context) {
                     language: "html"
                 });
                 await vscode.window.showTextDocument(htmlDoc, { preview: false, viewColumn: vscode.ViewColumn.Three, preserveFocus: true });
-                info("HTML échappé + preview Markdown + code HTML ouverts.");
+                info("HTML Moodle + preview Markdown + code HTML ouverts.");
             }
         },
         {
@@ -256,6 +431,10 @@ function activate(context) {
                     info("Aucune réponse à exporter. Lancez d'abord Moodle: Send.");
                     return;
                 }
+                if (!state.lastGeneratedHtml || state.lastGeneratedHtml.trim().length === 0) {
+                    info("Aucun HTML généré. Lancez d'abord Moodle: Generate.");
+                    return;
+                }
                 const target = await vscode.window.showSaveDialog({
                     saveLabel: "Exporter la séance générée",
                     filters: {
@@ -263,15 +442,15 @@ function activate(context) {
                         "Fichiers HTML": ["html"]
                     },
                     defaultUri: vscode.Uri.file(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-                        ? `${vscode.workspace.workspaceFolders[0].uri.fsPath}\\export-moodle-seance.txt`
-                        : "export-moodle-seance.txt")
+                        ? `${vscode.workspace.workspaceFolders[0].uri.fsPath}\\export-moodle-seance.html`
+                        : "export-moodle-seance.html")
                 });
                 if (!target) {
                     info("Export annulé.");
                     return;
                 }
                 const encoder = new TextEncoder();
-                const data = encoder.encode(state.lastResponse);
+                const data = encoder.encode(state.lastGeneratedHtml);
                 await vscode.workspace.fs.writeFile(target, data);
                 info(`Export réussi : ${target.fsPath}`);
             }
